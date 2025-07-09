@@ -9,13 +9,11 @@ using System.Windows.Media;
 using RoboDk.API;
 
 
-namespace TheSystemRoboDkTest;
 
-/// <summary>
-/// Interaction logic for MainWindow.xaml
-/// </summary>
+namespace TheSystemRoboDkTest;
 public partial class MainWindow : Window
 {
+    #region A
     [DllImport("user32.dll")]
     private static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
 
@@ -31,18 +29,51 @@ public partial class MainWindow : Window
     private int StepMax = 2000;
     private int StepIncrement = 5;
 
+
+    #endregion
     public MainWindow()
     {
         InitializeComponent();
-
-        RoboDK rdk = new RoboDK();
     }
 
-  
+
+    private void Window_Closing(object sender, CancelEventArgs e)
+    {
+            SetParent(_hWnd, IntPtr.Zero);
+        RDK.Disconnect();
+
+        RDK.CloseRoboDK();
+            RDK = null;
+            _hWnd = IntPtr.Zero;
+        
+    }
+
+
+    private void Window_Loaded(object sender, RoutedEventArgs e)
+    {
+
+        if (!Check_RDK())
+        {
+            RDK = new RoboDK();
+            if (!Check_RDK())
+            {
+                notifybar.Text = "RoboDK를 시작할 수 없습니다.";
+                return;
+            }
+            notifybar.Text = "RoboDK is Running...";
+        }
+        //    rad_RoboDK_Integrated.IsChecked = true;
+        RDK.setWindowState((int)RoboDk.API.Model.WindowState.Cinema);
+        string processIdStr = RDK.Command("MainProcess_ID");
+        int processId = Convert.ToInt32(processIdStr);
+
+        EmbedProcessWindow(processId);
+        this.Icon = (ImageSource)System.Windows.Application.Current.Resources["IconRoboDK"];
+
+    }
 
     public void CloseAllStations()
     {
-        // Get all the RoboDK stations available
         RoboDK.Item[] all_stations = RDK.getItemList(RoboDK.ITEM_TYPE_STATION);
 
         if (all_stations == null || all_stations.Length == 0)
@@ -56,7 +87,6 @@ public partial class MainWindow : Window
             try
             {
                 notifybar.Text = "Closing " + station.Name();
-                // 이 스테이션을 저장하지 않고 닫음
                 station.Delete();
             }
             catch (Exception ex)
@@ -99,28 +129,22 @@ public partial class MainWindow : Window
 
     private void rad_RunMode_Simulation_CheckedChanged(object sender, RoutedEventArgs e)
     {
-        // 라디오버튼이 체크 해제된 경우 무시
         if (sender is System.Windows.Controls.RadioButton rb && rb.IsChecked != true)
             return;
 
-        // RoboDK 연결 확인
         if (!Check_RDK())
             return;
 
-        // RoboDK 창을 일반 모드로 전환
         SetParent(RDK.GetWindowHandle(), IntPtr.Zero);
 
-        RDK.setWindowState(RoboDK.WINDOWSTATE_NORMAL);      // 일반 모드
-        RDK.setWindowState(RoboDK.WINDOWSTATE_MAXIMIZED);   // 최대화
+        //RDK.setWindowState(RoboDK.WINDOWSTATE_NORMAL);      // 일반 모드
+        //RDK.setWindowState(RoboDK.WINDOWSTATE_MAXIMIZED);   // 최대화
 
-        // WPF에서는 MinHeight/MinWidth 사용
-        this.Height = this.MinHeight;
-        this.Width = this.MinWidth;
+        //this.Height = this.MinHeight;
+        //this.Width = this.MinWidth;
 
-        // WPF에서는 BringToFront가 없으므로, Activate() 사용
         this.Activate();
 
-        // 상태 표시
         notifybar.Text = "Simulation 모드로 전환됨";
     }
 
@@ -196,25 +220,13 @@ public partial class MainWindow : Window
         if (!Check_RDK()) return;
 
         RDK.setWindowState(RoboDK.WINDOWSTATE_HIDDEN);
-        // RDK.HideRoboDK();
-
-        // WPF 창 최소 크기로 조정
+ 
         this.Width = this.MinWidth;
         this.Height = this.MinHeight;
     }
 
 
 
-    private void Window_Closing(object sender, CancelEventArgs e)
-    {
-        if (_hWnd != IntPtr.Zero)
-        {
-            SetParent(_hWnd, IntPtr.Zero);
-            RDK.CloseRoboDK();
-            RDK = null;
-            _hWnd = IntPtr.Zero;
-        }
-    }
 
 
     private void rad_RoboDK_Integrated_CheckedChanged(object sender, RoutedEventArgs e)
@@ -268,426 +280,14 @@ public partial class MainWindow : Window
 
     private void btnMoveRobotHome_Click(object sender, RoutedEventArgs e)
     {
+
+
+
         if (!Check_ROBOT()) { return; }
 
         double[] joints_home = ROBOT.JointsHome();
 
         ROBOT.MoveJ(joints_home);
-    }
-    private void btnRunTestProgram_Click(object sender, EventArgs e)
-    {
-
-
-        if (!Check_ROBOT()) { return; }
-
-
-        int n_sides = 6;
-
-        Mat pose_ref = ROBOT.Pose();
-
-        // Set the simulation speed (ratio = real time / simulated time)
-        // 1 second of the simulator equals 5 second in real time
-        RDK.setSimulationSpeed(5);
-
-        try
-        {
-            // retrieve the reference frame and the tool frame (TCP)
-            Mat frame = ROBOT.PoseFrame();
-            Mat tool = ROBOT.PoseTool();
-            int runmode = RDK.RunMode(); // retrieve the run mode 
-
-            // Program start
-            ROBOT.MoveJ(pose_ref);
-            ROBOT.setPoseFrame(frame);  // set the reference frame
-            ROBOT.setPoseTool(tool);    // set the tool frame: important for Online Programming
-            ROBOT.setSpeed(100);        // Set Speed to 100 mm/s
-            ROBOT.setZoneData(5);       // set the rounding instruction (C_DIS & APO_DIS / CNT / ZoneData / Blend Radius / ...)
-            ROBOT.RunInstruction("CallOnStart", RoboDK.INSTRUCTION_CALL_PROGRAM);
-            for (int i = 0; i <= n_sides; i++)
-            {
-                double angle = ((double)i / n_sides) * 2.0 * Math.PI;
-
-                // calculate the next position
-                Mat pose_i = pose_ref * Mat.rotz(angle) * Mat.transl(100, 0, 0) * Mat.rotz(-angle);
-
-                // Add an instruction (comment)
-                ROBOT.RunInstruction("Moving to point " + i.ToString(), RoboDK.INSTRUCTION_COMMENT);
-                double[] xyzwpr = pose_i.ToXYZRPW(); // read the target as XYZWPR
-                ROBOT.MoveL(pose_i);
-            }
-            ROBOT.RunInstruction("CallOnStart", RoboDK.INSTRUCTION_CALL_PROGRAM);
-            ROBOT.MoveL(pose_ref);
-        }
-        catch (RoboDK.RDKException rdkex)
-        {
-            notifybar.Text = "Failed to complete the movement: " + rdkex.Message;
-        }
-
-        return;
-
-
-
-        RDK.EventsListen();
-        RDK.EventsLoop();
-        return;
-
-
-        // API communication speed tests
-        var stopwatch = new Stopwatch();
-        int ntests = 1000;
-
-        stopwatch.Reset();
-        stopwatch.Start();
-        for (var i = 0; i < ntests; i++)
-        {
-            var robot_name = ROBOT.Name();
-        }
-        stopwatch.Stop();
-        Console.WriteLine($"Calling .Name() took {stopwatch.ElapsedMilliseconds * 1000 / ntests} micro seconds on average");
-
-        stopwatch.Reset();
-        stopwatch.Start();
-        for (var i = 0; i < ntests; i++)
-        {
-            var joints = ROBOT.Joints();
-        }
-        stopwatch.Stop();
-        Console.WriteLine($"Calling .Joints() took {stopwatch.ElapsedMilliseconds * 1000 / ntests} micro seconds on average");
-        return;
-
-
-
-        RDK.EventsListen();
-        RDK.EventsLoop();
-
-
-        RDK.WaitForEvent(out int evt, out RoboDK.Item itm);
-        RDK.SampleRoboDkEvent(evt, itm);
-        return;
-
-        //--------------------------------------------------
-        // Other tests used for debugging...
-
-        //RDK.SetInteractiveMode(RoboDK.SELECT_MOVE, RoboDK.DISPLAY_REF_TX | RoboDK.DISPLAY_REF_TY | RoboDK.DISPLAY_REF_PXY | RoboDK.DISPLAY_REF_RZ, new List<RoboDK.Item>() { ROBOT }, new List<int>() { RoboDK.DISPLAY_REF_ALL });
-        //return;
-
-
-        RoboDK.Item[] references = RDK.getItemList(RoboDK.ITEM_TYPE_FRAME);
-        UInt64[] cam_list = new UInt64[references.Length];
-        for (int i = 0; i < references.Length; i++)
-        {
-            cam_list[i] = RDK.Cam2D_Add(references[i], "FOCAL_LENGHT=6 FOV=32 FAR_LENGHT=1000 SIZE=640x480");
-        }
-
-        System.Threading.Thread.Sleep(2000);
-
-        for (int i = 0; i < references.Length; i++)
-        {
-            RDK.Cam2D_SetParams(references[i].Name(), cam_list[i]);
-        }
-
-        System.Threading.Thread.Sleep(2000);
-
-        // close all cameras
-        RDK.Cam2D_Close();
-
-        return;
-
-        // Example to change the robot parameters (DHM parameters as defined by Craig 1986)
-        // for joints 1 to 6, index i changes from 0 to 5:
-        // dhm[i][] = [alpha, a, theta, d];
-
-
-        // first point
-        double[] p1 = { 0, 0, 0 };
-        double[] p2 = { 1000, 0, 0 };
-        Mat reference = Mat.transl(0, 0, 100);
-        double[] p_collision = new double[3]; // this can be null if we don't need the collision point
-
-        RoboDK.Item item = RDK.Collision_Line(p1, p2, reference, p_collision);
-
-        string name;
-        if (item.Valid())
-        {
-            name = item.Name();
-        }
-        else
-        {
-            // item not valid
-        }
-
-        return;
-
-
-
-
-        //-------------------------------------------------------------
-        // Test forward/inverse kinematics calculation for multiple robots
-        var station = RDK.AddStation("Speed Tests");
-
-        string robot_file = RDK.getParam("PATH_LIBRARY") + "/KUKA-KR-210-R2700.robot";
-        int n_robots = 10;
-        int n_tests = 100;
-        List<RoboDK.Item> robot_list = new List<RoboDK.Item>();
-        List<double[]> joints_list = new List<double[]>();
-
-        for (int i = 0; i < n_robots; i++)
-        {
-            var robot = RDK.AddFile(robot_file);
-            var joints = new double[] { i * 5, -90, 90, 0, 90, 0 };
-            robot.setJoints(joints);
-            robot_list.Add(robot);
-            joints_list.Add(joints);
-        }
-
-
-
-        double time_average_ms = 0;
-
-        for (int t = 0; t < n_tests; t++)
-        {
-            var t1 = DateTime.Now;
-
-            // Bulk calculation (new): you can provide a list of robots: 2.5 ms for 10 robots on avg
-            var pose_solutions = RDK.SolveFK(robot_list, joints_list);
-            var joint_solutions = RDK.SolveIK(robot_list, pose_solutions);
-            var joints_solutions2 = RDK.SolveIK(robot_list, pose_solutions, joints_list);
-            var jnts = RDK.SolveIK_All(robot_list, pose_solutions);
-            var cnfigs = RDK.JointsConfig(robot_list, joints_list);
-
-
-            /*
-            // Individual calculation (typical operation): 5.5 ms for 10 robots on avg
-            for (int i = 0; i < n_robots; i++)
-            {
-                Mat pose = robot_list[i].SolveFK(joints_list[i]);
-                var solution = robot_list[i].SolveIK(pose); // pose_solutions[i]);                    
-            }
-            */
-
-            var t2 = DateTime.Now;
-            var elapsed_ms = t2.Subtract(t1).TotalMilliseconds;
-            time_average_ms = time_average_ms + elapsed_ms;
-            Console.WriteLine("Forward/inverse kinematics Calculated in (ms)" + elapsed_ms.ToString());
-        }
-        time_average_ms = time_average_ms / n_tests;
-        Console.WriteLine("=> Average calculation time (ms): " + time_average_ms.ToString());
-
-        station.Delete();
-
-        return;
-
-
-
-
-        double[][] dhm;
-        Mat pose_base;
-        Mat pose_tool;
-        // get the current robot parameters:
-        /* RDK.getRobotParams(ROBOT, out dhm, out pose_base, out pose_tool);
-
-         // change the mastering values:
-         for (int i = 0; i < 6; i++)
-         {
-             dhm[i][2] = dhm[i][2] + 1 * Math.PI / 180.0; // change theta i (mastering value, add 1 degree)
-         }
-
-         // change the base and tool distances:
-         dhm[0][3] = dhm[0][3] + 5; // add 5 mm to d1
-         dhm[5][3] = dhm[5][3] + 5; // add 5 mm to d6
-
-         // update the robot parameters back:
-         RDK.setRobotParams(ROBOT, dhm, pose_base, pose_tool);*/
-
-        return;
-
-        // Example to rotate the view around the Z axis
-        /*RoboDK.Item item_robot = RDK.ItemUserPick("Select the robot you want", RoboDK.ITEM_TYPE_ROBOT);
-        item_robot.MoveL(item_robot.Pose() * Mat.transl(0, 0, 50));
-        return;*/
-
-
-        RDK.setViewPose(RDK.ViewPose() * Mat.rotx(10 * 3.141592 / 180));
-        return;
-
-        //---------------------------------------------------------
-        // Sample to generate a program using a C# script
-        if (ROBOT != null && ROBOT.Valid())
-        {
-            //ROBOT.Finish();
-            //RDK.Finish();
-            // RDK.Connect(); // redundant
-            RDK.Finish(); // ignores any previous activity to generate the program
-            RDK.setRunMode(RoboDK.RUNMODE_MAKE_ROBOTPROG); // Very important to set first
-            RDK.ProgramStart("TestProg1", "C:\\Users\\Albert\\Desktop\\", "KAIRO.py", ROBOT);
-            double[] joints1 = new double[6] { 1, 2, -50, 4, 5, 6 };
-            double[] joints2 = new double[6] { -1, -2, -50, 4, 5, 6 };
-
-            ROBOT.MoveJ(joints1);
-            ROBOT.MoveJ(joints2);
-            ROBOT.Finish(); // provoke program generation
-
-
-
-            RDK.Finish(); // ignores any previous activity to generate the program
-            RDK.setRunMode(RoboDK.RUNMODE_MAKE_ROBOTPROG); // Very important to set first
-            RDK.ProgramStart("TestProg2_no_robot", "C:\\Users\\Albert\\Desktop\\", "Fanuc_RJ3.py");
-            RDK.RunProgram("Program1");
-            RDK.RunCode("Output Raw code");
-            RDK.Finish(); // provoke program generation
-
-
-
-            ROBOT.Finish(); // ignores any previous activity to generate the program
-            RDK.setRunMode(RoboDK.RUNMODE_MAKE_ROBOTPROG); // Very important to set first
-            RDK.ProgramStart("TestProg3", "C:\\Users\\Albert\\Desktop\\", "GSK.py", ROBOT);
-            double[] joints3 = new double[6] { 10, 20, 30, 40, 50, 60 };
-            double[] joints4 = new double[6] { -10, -20, -30, 40, 50, 60 };
-
-            ROBOT.MoveJ(joints3);
-            ROBOT.MoveJ(joints4);
-            ROBOT.Finish(); // provoke program generation
-
-        }
-        else
-        {
-            Console.WriteLine("No robot selected");
-        }
-        return;
-
-        //---------------------------------------------------------
-        RoboDK.Item prog = RDK.getItem("", RoboDK.ITEM_TYPE_PROGRAM);
-        string err_msg;
-        Mat jnt_list;
-        //prog.InstructionListJoints(out err_msg, out jnt_list, 0.5, 0.5);
-        prog.InstructionListJoints(out err_msg, out jnt_list, 5, 5);
-        for (int j = 0; j < jnt_list.cols; j++)
-        {
-            for (int i = 0; i < jnt_list.rows; i++)
-            {
-                Console.Write(jnt_list[i, j]);
-                Console.Write("    ");
-            }
-            Console.WriteLine("");
-        }
-
-
-
-        return;
-
-
-        // Example to retrieve the selected point and normal of a surface and create a target.
-        // get the robot reference frame
-        RoboDK.Item robot_ref = ROBOT.getLink(RoboDK.ITEM_TYPE_FRAME);
-        if (!robot_ref.Valid())
-        {
-            Console.WriteLine("The robot doesn't have a reference frame selected. Selecting a robot reference frame (or make a reference frame active is required to add a target).");
-            return;
-        }
-
-        //var obj = RDK.getItem("box", ITEM_TYPE_OBJECT);//RDK.ItemUserPick("Select an object", ITEM_TYPE_OBJECT);
-        //var obj = RDK.getItem("tide", ITEM_TYPE_OBJECT);//RDK.ItemUserPick("Select an object", ITEM_TYPE_OBJECT);
-
-        int feature_type = -1;
-        int feature_id = -1;
-
-        // Remember the information relating to the selected point (XYZ and surface normal).
-        // These values are retrieved in Absolute coordinates (with respect to the station).
-        double[] point_xyz = null;
-        double[] point_ijk = null;
-
-        while (true)
-        {
-            var obj_selected = RDK.GetSelectedItems();
-            if (obj_selected.Count == 1 && obj_selected[0].Type() == RoboDK.ITEM_TYPE_OBJECT)
-            {
-                var obj = obj_selected[0];
-                // RDK.SetSelectedItems(); // ideally we need this function to clear the selection
-                var is_Selected = obj.SelectedFeature(out feature_type, out feature_id);
-                if (is_Selected && feature_type == RoboDK.FEATURE_SURFACE)
-                {
-                    Mat point_list;
-                    string description = obj.GetPoints(feature_type, feature_id, out point_list);
-                    // great, we got the point from the surface. This will be size 6x1
-                    Console.WriteLine("Point information: " + description);
-                    if (point_list.cols < 1 || point_list.rows < 6)
-                    {
-                        // something is wrong! This should not happen....
-                        Console.WriteLine(point_list.ToString());
-                        continue;
-                    }
-                    double[] value = point_list.GetCol(0).ToDoubles();
-                    point_xyz = new double[] { value[0], value[1], value[2] };
-                    // invert the IJK values (RoboDK provides the normal coming out of the surface but we usually want the Z axis to go into the object)
-                    point_ijk = new double[] { -value[3], -value[4], -value[5] };
-                    Mat obj_pose_abs = obj.PoseAbs();
-
-                    // Calculate the point in Absolute coordinates (with respect to the station)
-                    point_xyz = obj_pose_abs * point_xyz;
-                    point_ijk = obj_pose_abs.Rot3x3() * point_ijk;
-                    break;
-                }
-            }
-        }
-
-
-        // Calculate the absolute pose of the robot reference
-        Mat ref_pose_abs = robot_ref.PoseAbs();
-
-        // Calculate the absolute pose of the robot tool 
-        Mat robot_pose_abs = ref_pose_abs * robot_ref.Pose();
-
-        // Calculate the robot pose for the selected target and use the tool Y axis as a reference
-        // (we try to get the pose that has the Y axis as close as possible as the current robot position)
-        Mat pose_surface_abs = Mat.xyzijk_2_pose(point_xyz, point_ijk, robot_pose_abs.VY());
-
-        if (!pose_surface_abs.IsHomogeneous())
-        {
-            Console.WriteLine("Something went wrong");
-            return;
-        }
-
-        // calculate the pose of the target (relative to the reference frame)
-        Mat pose_surface_rel = ref_pose_abs.inv() * pose_surface_abs;
-
-        // add a target and update the pose
-        var target_new = RDK.AddTarget("T1", robot_ref, ROBOT);
-        target_new.setAsCartesianTarget();
-        target_new.setJoints(ROBOT.Joints()); // this is only important if we want to remember the current configuration
-        target_new.setPose(pose_surface_rel);
-
-
-
-
-
-
-
-
-        /*RoboDK.Item frame = RDK.getItem("FrameTest");
-        double[] xyzwpr = { 1000.0, 2000.0, 3000.0, 12.0 * Math.PI / 180.0, 84.98 * Math.PI / 180.0, 90.0 * Math.PI / 180.0 };
-        Mat pose;
-        pose = Mat.FromUR(xyzwpr);
-        double[] xyzwpr_a = pose.ToUR();
-        double[] xyzwpr_b = pose.ToUR_Alternative();
-
-        Console.WriteLine("Option one:");
-        Console.Write(Mat.FromUR(xyzwpr_a).ToString());
-        Console.Write(xyzwpr_a[0]); Console.WriteLine("");
-        Console.Write(xyzwpr_a[1]); Console.WriteLine("");
-        Console.Write(xyzwpr_a[2]); Console.WriteLine("");
-        Console.Write(xyzwpr_a[3] * 180.0 / Math.PI); Console.WriteLine("");
-        Console.Write(xyzwpr_a[4] * 180.0 / Math.PI); Console.WriteLine("");
-        Console.Write(xyzwpr_a[5] * 180.0 / Math.PI); Console.WriteLine("");
-
-        Console.WriteLine("Option Two:");
-        Console.Write(Mat.FromUR(xyzwpr_b).ToString());
-        Console.Write(xyzwpr_b[0]); Console.WriteLine("");
-        Console.Write(xyzwpr_b[1]); Console.WriteLine("");
-        Console.Write(xyzwpr_b[2]); Console.WriteLine("");
-        Console.Write(xyzwpr_b[3] * 180.0 / Math.PI); Console.WriteLine("");
-        Console.Write(xyzwpr_b[4] * 180.0 / Math.PI); Console.WriteLine("");
-        Console.Write(xyzwpr_b[5] * 180.0 / Math.PI); Console.WriteLine("");*/
-
     }
 
 
@@ -747,30 +347,18 @@ public partial class MainWindow : Window
 
 
    
-    private void Window_Loaded(object sender, RoutedEventArgs e)
-    {
-      
-        if (!Check_RDK())
-        {
-            RDK = new RoboDK();
-            if (!Check_RDK())
-            {
-                notifybar.Text = "RoboDK를 시작할 수 없습니다.";
-                return;
-            }
-            notifybar.Text = "RoboDK is Running...";
-        }
-        rad_RoboDK_Integrated.IsChecked = true;
-        RDK.setWindowState((int)RoboDk.API.Model.WindowState.Cinema);
-        string processIdStr = RDK.Command("MainProcess_ID");
-        int processId = Convert.ToInt32(processIdStr);
 
-        EmbedProcessWindow(processId);
-        this.Icon = (ImageSource)System.Windows.Application.Current.Resources["IconRoboDK"];
-
-    }
     private void EmbedProcessWindow(int processId)
     {
+
+        var relativePoint = border1.TransformToAncestor(this).Transform(new System.Windows.Point(0, 0));
+        int x = (int)relativePoint.X;
+        int y = (int)relativePoint.Y;
+        int width = (int)border1.ActualWidth;
+        int height = (int)border1.ActualHeight;
+
+
+
         Process process = Process.GetProcessById(processId);
         if (process != null && !process.HasExited)
         {
@@ -780,8 +368,7 @@ public partial class MainWindow : Window
                 IntPtr hostHandle = new WindowInteropHelper(this).Handle;
 
                 SetParent(_hWnd, hostHandle);
-
-                MoveWindow(_hWnd, (int)border1.Margin.Left, (int)border1.Margin.Top, (int)border1.ActualWidth, (int)border1.ActualHeight, true);
+                MoveWindow(_hWnd, x+30, y+5, width+121, height+120, true);
             }
         }
     }
@@ -1105,13 +692,18 @@ public partial class MainWindow : Window
 
     private void btnTXpos_Click(object sender, RoutedEventArgs e)
     {
-
+       
+        Incremental_Move("+Tx");
     }
 
     private void btnTXneg_Click(object sender, RoutedEventArgs e)
     {
-
+        
+            Incremental_Move("-Tx");
+        
+    
     }
+
 
     private void btnStepUp_Click(object sender, RoutedEventArgs e)
     {

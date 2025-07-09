@@ -6,8 +6,9 @@
     xmlns:local="clr-namespace:TheSystemRoboDkTest"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     Title="MainWindow"
-    Width="800"
-    Height="950"
+    Width="900"
+    Height="550"
+    Closing="Window_Closing"
     Loaded="Window_Loaded"
     mc:Ignorable="d">
     <Grid>
@@ -16,7 +17,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <!--  Main Content  -->
-        <Grid Grid.Row="0" Margin="10">
+        <Grid Grid.Row="0" Margin="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="100" />
                 <ColumnDefinition Width="502" />
@@ -47,17 +48,11 @@
                     Click="btnSelectRobot_Click"
                     Content="로봇 선택" />
                 <Button
-                    Name="btnMoveRobotHome"
+                    x:Name="btnMoveRobotHome"
                     Height="30"
-                    Margin="0,0,0,8"
                     Click="btnMoveRobotHome_Click"
                     Content="원점" />
-                <Button
-                    Name="btnRunTestProgram"
-                    Height="30"
-                    Margin="0,0,0,8"
-                    Click="btnRunTestProgram_Click"
-                    Content="런테스트" />
+
             </StackPanel>
 
             <!--  Run Mode Group  -->
@@ -66,6 +61,7 @@
                 Padding="0,0,0,0"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Top"
+                d:IsHidden="True"
                 Header="실행 스타일">
                 <StackPanel
                     Margin="10,5,0,5"
@@ -100,6 +96,7 @@
             <GroupBox
                 Grid.Row="1"
                 VerticalAlignment="Bottom"
+                d:IsHidden="True"
                 Header="Display Mode"
                 Visibility="Collapsed">
                 <StackPanel>
@@ -124,12 +121,11 @@
             <GroupBox
                 Grid.Row="2"
                 Grid.Column="2"
-                Grid.ColumnSpan="2"
-                Margin="0,0,0,11"
+                Margin="0,0,59,11"
                 Padding="0,0,0,0"
-                HorizontalAlignment="Left"
+                d:IsHidden="True"
                 Header="Move Robot">
-                <StackPanel Margin="10" Orientation="Vertical">
+                <StackPanel Orientation="Vertical">
                     <StackPanel
                         Margin="0,0,0,5"
                         VerticalAlignment="Center"
@@ -143,6 +139,7 @@
                             Width="180"
                             Height="25"
                             Margin="5,0,0,0"
+                            Panel.ZIndex="-1"
                             Text="90 , -90 , 90 , 90 , 90 , -90" />
                         <Button
                             Name="btnMoveJoints"
@@ -181,21 +178,18 @@
 
             <!--  프로그램 실행  -->
             <GroupBox
-                Grid.Row="4"
                 Grid.Column="2"
-                Height="100"
-                VerticalAlignment="Bottom"
+                Margin="0,0,0,-2"
                 Header="Run Program">
-                <StackPanel HorizontalAlignment="Left">
+                <StackPanel Width="238" HorizontalAlignment="Left">
                     <Label
                         Width="110"
                         VerticalAlignment="Center"
                         Content="Program name:" />
                     <TextBox
-                        Name="txtRunProgram"
+                        x:Name="txtRunProgram"
                         Width="100"
                         Height="25"
-                        Margin="5,0,0,0"
                         Text="MainProgram" />
                     <Button
                         Name="btnRun_Program"
@@ -209,29 +203,23 @@
 
             <!--  RoboDK 패널 (임시 Panel)  -->
             <Border
-                Grid.RowSpan="3"
+                Grid.RowSpan="4"
                 Grid.Column="1"
-                Grid.ColumnSpan="1"
-                Height="500"
-                Margin="0,0,10,0"
-                VerticalAlignment="Top"
-                Background="LightGray"
-                d:LayoutOverrides="LeftMargin, RightMargin, TopMargin, BottomMargin">
+                Background="LightGray">
                 <Border
                     Name="border1"
                     Margin="10"
                     Background="LightGray"
                     BorderBrush="Black"
-                    BorderThickness="1"
                     SizeChanged="border1_SizeChanged" />
-
             </Border>
 
 
             <GroupBox
-                Grid.Row="3"
+                Grid.Row="1"
+                Grid.RowSpan="3"
                 Grid.Column="2"
-                d:IsHidden="True"
+                Margin="0,0,0,6"
                 Header="Incremental Move">
                 <StackPanel>
                     <!--  이동 기준 선택  -->
@@ -290,15 +278,12 @@
                             Margin="2"
                             Click="btnTXpos_Click"
                             Content="+Tx" />
+                        <Button x:Name="btnTYpos" Content="+Ty" />
                         <Button
                             x:Name="btnTXneg"
                             Margin="2"
                             Click="btnTXneg_Click"
                             Content="-Tx" />
-                        <Button
-                            x:Name="btnTYpos"
-                            Margin="2"
-                            Content="+Ty" />
                         <Button
                             x:Name="btnTYneg"
                             Margin="2"
