@@ -57,12 +57,13 @@
 
             <!--  Run Mode Group  -->
             <GroupBox
+                Grid.RowSpan="2"
                 Grid.Column="2"
+                Margin="10,0,-50,0"
                 Padding="0,0,0,0"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Top"
-                d:IsHidden="True"
-                Header="실행 스타일">
+                VerticalAlignment="Bottom"
+                Header="실행 스타일"
+                Visibility="Collapsed">
                 <StackPanel
                     Margin="10,5,0,5"
                     HorizontalAlignment="Left"
@@ -96,7 +97,6 @@
             <GroupBox
                 Grid.Row="1"
                 VerticalAlignment="Bottom"
-                d:IsHidden="True"
                 Header="Display Mode"
                 Visibility="Collapsed">
                 <StackPanel>
@@ -119,11 +119,10 @@
 
             <!--  조인트/포즈 입력 및 이동  -->
             <GroupBox
-                Grid.Row="2"
+                Grid.RowSpan="1"
                 Grid.Column="2"
-                Margin="0,0,59,11"
+                Margin="0,0,-60,11"
                 Padding="0,0,0,0"
-                d:IsHidden="True"
                 Header="Move Robot">
                 <StackPanel Orientation="Vertical">
                     <StackPanel
@@ -177,29 +176,6 @@
             </GroupBox>
 
             <!--  프로그램 실행  -->
-            <GroupBox
-                Grid.Column="2"
-                Margin="0,0,0,-2"
-                Header="Run Program">
-                <StackPanel Width="238" HorizontalAlignment="Left">
-                    <Label
-                        Width="110"
-                        VerticalAlignment="Center"
-                        Content="Program name:" />
-                    <TextBox
-                        x:Name="txtRunProgram"
-                        Width="100"
-                        Height="25"
-                        Text="MainProgram" />
-                    <Button
-                        Name="btnRun_Program"
-                        Width="110"
-                        Height="25"
-                        Margin="10,0,0,0"
-                        Click="btnRun_Program_Click"
-                        Content="Run Program" />
-                </StackPanel>
-            </GroupBox>
 
             <!--  RoboDK 패널 (임시 Panel)  -->
             <Border
@@ -216,10 +192,10 @@
 
 
             <GroupBox
-                Grid.Row="1"
-                Grid.RowSpan="3"
+                Grid.Row="2"
+                Grid.RowSpan="2"
                 Grid.Column="2"
-                Margin="0,0,0,6"
+                Margin="0,-22,-50,6"
                 Header="Incremental Move">
                 <StackPanel>
                     <!--  이동 기준 선택  -->

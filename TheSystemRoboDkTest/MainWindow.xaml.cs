@@ -54,7 +54,9 @@ public partial class MainWindow : Window
 
         if (!Check_RDK())
         {
+            
             RDK = new RoboDK();
+            RDK.setWindowState(RoboDK.WINDOWSTATE_HIDDEN);
             if (!Check_RDK())
             {
                 notifybar.Text = "RoboDK를 시작할 수 없습니다.";
@@ -63,11 +65,13 @@ public partial class MainWindow : Window
             notifybar.Text = "RoboDK is Running...";
         }
         //    rad_RoboDK_Integrated.IsChecked = true;
+        RDK.setWindowState(RoboDK.WINDOWSTATE_NORMAL);
         RDK.setWindowState((int)RoboDk.API.Model.WindowState.Cinema);
         string processIdStr = RDK.Command("MainProcess_ID");
         int processId = Convert.ToInt32(processIdStr);
 
         EmbedProcessWindow(processId);
+
         this.Icon = (ImageSource)System.Windows.Application.Current.Resources["IconRoboDK"];
 
     }
@@ -470,45 +474,6 @@ public partial class MainWindow : Window
         catch (RoboDK.RDKException rdkex)
         {
             notifybar.Text = "Problems moving the robot: " + rdkex.Message;
-        }
-    }
-
-
-    private void btnRun_Program_Click(object sender, EventArgs e)
-    {
-        // Check that there is a link with RoboDK:
-        if (!Check_RDK()) { return; }
-
-        string progname = txtRunProgram.Text;
-
-        // Retrieve the program item
-        RoboDK.Item prog = RDK.getItem(progname);
-
-        if (prog.Valid() && (prog.Type() == RoboDK.ITEM_TYPE_PROGRAM_PYTHON || prog.Type() == RoboDK.ITEM_TYPE_PROGRAM))
-        {
-            // 실행 모드에 따라 RunType 지정
-            if (rad_RunMode_Online.IsChecked == true)
-            {
-                prog.setRunType(RoboDK.PROGRAM_RUN_ON_ROBOT);
-                notifybar.Text = "Running program on real robot: " + progname;
-            }
-            else if (rad_RunMode_Program.IsChecked == true)
-            {
-                prog.setRunType(RoboDK.PROGRAM_RUN_ON_SIMULATOR);
-                ROBOT.RunCodeCustom(progname);
-                notifybar.Text = "Generating offline program call: " + progname;
-            }
-            else // Simulation
-            {
-                prog.setRunType(RoboDK.PROGRAM_RUN_ON_SIMULATOR);
-                notifybar.Text = "Running program in simulation: " + progname;
-            }
-
-            prog.RunProgram();
-        }
-        else
-        {
-            notifybar.Text = "The program " + progname + " does not exist or is not a valid program.";
         }
     }
 
